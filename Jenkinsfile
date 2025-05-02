@@ -1,8 +1,5 @@
 pipeline {
     agent any
-     parameters {
-        choice(name: 'DEPLOY', choices: ['false', 'true'], description: 'Voulez-vous déployer l\'application ?')
-    }
     stages {
         stage('Supprimer le workspace') {
             steps {
@@ -23,18 +20,17 @@ pipeline {
             }
         }
          stage('Deploiement application') {
-            when {
-                expression { return params.DEPLOY == 'true' }
-            }
             steps {
                 script{
-                   // Nettoyage des anciens containers (s'ils existent)
-                    sh 'docker ps -a | grep myapp && docker rm -f myapp || true'
-                    sh 'docker rmi -f myapp-image || true'
-                    
-                    // Déployer le conteneur
-                    sh 'docker run -d --name myapp -p 8088:80 kevins:myapp-image'
-                    sh 'docker inspect -f "{{ .NetworkSettings.IPAddress }}" myapp'
+          // Nettoyage des anciens conteneurs (s'ils existent)
+            sh 'docker ps -a --format "{{.Names}}" | grep -w myapp && docker stop myapp || true'
+            sh 'docker ps -a --format "{{.Names}}" | grep -w myapp && docker rm myapp || true'
+
+            // Déployer le nouveau conteneur
+            sh 'docker run -d --name myapp --hostname myapp -p 8088:80 myapp-image'
+
+            // Vérification réseau
+            sh 'docker exec myapp ifconfig'
                 }
             }
         }
