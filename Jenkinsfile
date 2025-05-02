@@ -1,5 +1,8 @@
 pipeline {
     agent any
+     parameters {
+        choice(name: 'DEPLOY', choices: ['false', 'true'], description: 'Voulez-vous déployer l\'application ?')
+    }
     stages {
         stage('Supprimer le workspace') {
             steps {
@@ -8,24 +11,30 @@ pipeline {
         }
         stage('Checkout SCM') {
             steps {
-                git branch: 'main', credentialsId: 'id-user-github', url: 'https://github.com/ksdeve/projet-dev01.git'
+               git branch: 'main', credentialsId: 'ksdeve-github-id', url: 'https://github.com/ksdeve/projet-Devops.git'
             }
         }
          stage('Build image docker') {
             steps {
                 script{
-                    sh 'docker build -t myimage_nginx .'
-                    sh 'docker tag myimage_nginx kevins:myimage_nginx'
+                    sh 'docker build -t myapp-image .'
+                    sh 'docker tag myapp-image kevins:myapp-image'
                 }
             }
         }
          stage('Deploiement application') {
+            when {
+                expression { return params.DEPLOY == 'true' }
+            }
             steps {
                 script{
-                    sh 'docker stop monapp'                  
-                    sh 'docker rm monapp'                  
-                    sh 'docker run -d --name monapp --hostname monapp -p 8099:80 myimage_nginx'
-                    sh 'docker exec monapp "ifconfig"'
+                   // Nettoyage des anciens containers (s'ils existent)
+                    sh 'docker ps -a | grep myapp && docker rm -f myapp || true'
+                    sh 'docker rmi -f myapp-image || true'
+                    
+                    // Déployer le conteneur
+                    sh 'docker run -d --name myapp -p 8088:80 kevins:myapp-image'
+                    sh 'docker inspect -f "{{ .NetworkSettings.IPAddress }}" myapp'
                 }
             }
         }
